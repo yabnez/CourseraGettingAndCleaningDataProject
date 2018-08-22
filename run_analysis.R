@@ -2,19 +2,20 @@
 # Course Project for Getting and Cleaning Data
 #
 
+# library setup
 library(reshape2)
 library(dplyr)
-
-fileURL <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip "
-zipFileName <- "getdata_dataset.zip"
-dataDir <- "UCI HAR Dataset"
+library(zip)
 
 #
 ## P1. Download and unzip the project data
 #
+fileURL <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip "
+zipName <- "getdata.zip"
+dataDir <- "UCI HAR Dataset"
 
-if (!file.exists(zipFileName))  download.file(fileURL, zipFileName)
-if (!file.exists(dataDir))      unzip(zipFileName)
+if (!file.exists(zipName)) download.file(fileURL, zipName)
+if (!file.exists(dataDir)) unzip(zipName)
 
 #
 ## P2. Read original data
@@ -34,11 +35,9 @@ testS  <- read.table(file.path(dataDir, "test", "subject_test.txt"))
 testV  <- read.table(file.path(dataDir, "test", "X_test.txt"))
 testA  <- read.table(file.path(dataDir, "test", "y_test.txt"))
 
-# features
-features <- read.table(file.path(dataDir, "features.txt"), as.is=TRUE)
-
-# activity labels
-activities <- read.table(file.path(dataDir, "activity_labels.txt"))
+# features & activity labels
+feat   <- read.table(file.path(dataDir, "features.txt"), as.is=TRUE)
+acts   <- read.table(file.path(dataDir, "activity_labels.txt"))
 
 # for debug, comment out when completed
 }
@@ -49,53 +48,49 @@ activities <- read.table(file.path(dataDir, "activity_labels.txt"))
 #
 
 # concatenate tables to single table
-huAct <- rbind(cbind(trainS, trainV, trainA),
-               cbind(testS,  testV,  testA))
+allAct <- rbind(cbind(trainS, trainV, trainA), cbind(testS,  testV,  testA))
 
 # assign column names
-colnames(huAct) <- c("subject", features[, 2], "activity")
+colnames(allAct) <- c("subject", feat[, 2], "activity")
 
 #
-# 2. Extracts only the measurements on the mean and standard deviation for each measurement.
+# 2. Extracts only the measurements on the mean and standard deviation
+#    for each measurement.
 #
-# determine columns of dataset.
-huAct <- huAct[, grepl("subject|activity|mean|std", colnames(huAct))]
+# select dataset
+allAct <- allAct[, grepl("subject|activity|mean|std", colnames(allAct))]
 
 #
 # 3. Uses descriptive activity names to name the activities
 #    in the data set
 #
 
-# replace activity values with named factor levels
-huAct$activity <- 
-  factor(huAct$activity, 
-         levels = activities[, 1], labels = activities[, 2])
+# activity values to levels and labels
+allAct$activity <- 
+  factor(allAct$activity, levels = acts[, 1], labels = acts[, 2])
 
 #
 # 4. Appropriately labels the data set with descriptive variable names.
 #
 
-# get column names and remove special characters
-huActCols <- colnames(huAct)
-huActCols <- gsub("[\\(\\)-]", "", huActCols)
-
 # clean up names
-huActCols <- gsub("Acc",      "-Accelerometer", huActCols)
-huActCols <- gsub("Freq",     "-Frequency", huActCols)
-huActCols <- gsub("Gyro",     "-Gyroscope", huActCols)
-huActCols <- gsub("Mag",      "-Magnitude", huActCols)
-huActCols <- gsub("mean",     "-Mean", huActCols)
-huActCols <- gsub("std",      "-StandardDeviation", huActCols)
-huActCols <- gsub("X$",       "-X", huActCols)
-huActCols <- gsub("Y$",       "-Y", huActCols)
-huActCols <- gsub("Z$",       "-Z", huActCols)
-huActCols <- gsub("^f",       "FrequencyDomain", huActCols)
-huActCols <- gsub("^t",       "TimeDomain", huActCols)
+cols <- colnames(allAct)
+cols <- gsub("[\\(\\)-]", "", cols)
+cols <- gsub("Acc",       "-Accelerometer", cols)
+cols <- gsub("Freq",      "-Frequency", cols)
+cols <- gsub("Gyro",      "-Gyroscope", cols)
+cols <- gsub("Mag",       "-Magnitude", cols)
+cols <- gsub("mean",      "-Mean", cols)
+cols <- gsub("std",       "-StandardDeviation", cols)
+cols <- gsub("X$",        "-X", cols)
+cols <- gsub("Y$",        "-Y", cols)
+cols <- gsub("Z$",        "-Z", cols)
+cols <- gsub("^f",        "FrequencyDomain", cols)
+cols <- gsub("^t",        "TimeDomain", cols)
+cols <- gsub("BodyBody",  "Body", cols) # typo fixed
+cols <- gsub("Body",      "-Body", cols)
 
-huActCols <- gsub("BodyBody", "Body", huActCols)
-huActCols <- gsub("Body",     "-Body", huActCols)
-
-colnames(huAct) <- huActCols
+colnames(allAct) <- cols
 
 #
 # 5. From the data set in step 4, creates a second, independent
@@ -103,11 +98,11 @@ colnames(huAct) <- huActCols
 #    activity and each subject.
 #
 
-# group by subject and activity, and take average
-huActMeans <- huAct %>% 
+# group by subject and activity, and take average for each
+average <- allAct %>% 
   group_by(subject, activity) %>%
-  summarise_each(funs(mean))
+  summarise_all(funs(mean))
 
-# output to file "tidy.txt"
-write.table(huActMeans, "tidy.txt", row.names=FALSE, quote=FALSE)
-
+# result to "tidy.txt"
+write.table(average, "tidy.txt", row.names=FALSE, quote=FALSE)
+message("\n###\nproject completed!\n###\n")
